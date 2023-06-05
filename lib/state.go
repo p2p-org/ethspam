@@ -1,4 +1,4 @@
-package main
+package ethspam
 
 import (
 	"context"
@@ -10,7 +10,7 @@ import (
 	"github.com/INFURA/go-ethlibs/node"
 )
 
-var errEmptyBlock = errors.New("the sampled block is empty")
+var ErrEmptyBlock = errors.New("the sampled block is empty")
 
 type State interface {
 	RandInt64() int64
@@ -19,60 +19,62 @@ type State interface {
 	RandomContract() (addr string, topics []string)
 	RandomAddress() string
 	RandomTransaction() string
+	RandomBlock() string
 	RandomCall() (to, from, input string, block uint64)
 }
 
-type idGenerator struct {
+type IdGenerator struct {
 	id int64
 }
 
-func (gen *idGenerator) Next() int64 {
+func (gen *IdGenerator) Next() int64 {
 	return atomic.AddInt64(&gen.id, 1)
 }
 
-// liveState implements State but it seeds the state dataset from live sources
+// LiveState implements State but it seeds the state dataset from live sources
 // (Etherscan, etc)
-type liveState struct {
-	idGen   *idGenerator
-	randSrc rand.Source
+type LiveState struct {
+	IdGen   *IdGenerator
+	RandSrc rand.Source
 
 	currentBlock uint64
 	transactions []eth.Transaction
+	blockHashes  map[uint64]string
 }
 
-func (s *liveState) ID() int64 {
-	return s.idGen.Next()
+func (s *LiveState) ID() int64 {
+	return s.IdGen.Next()
 }
 
-func (s *liveState) CurrentBlock() uint64 {
+func (s *LiveState) CurrentBlock() uint64 {
 	return s.currentBlock
 }
 
-func (s *liveState) RandInt64() int64 {
-	return s.randSrc.Int63()
+func (s *LiveState) RandInt64() int64 {
+	return s.RandSrc.Int63()
 }
 
-func (s *liveState) RandomTransaction() string {
+func (s *LiveState) RandomTransaction() string {
 	if len(s.transactions) == 0 {
 		return ""
 	}
-	idx := int(s.randSrc.Int63()) % len(s.transactions)
+	idx := int(s.RandSrc.Int63()) % len(s.transactions)
 	return s.transactions[idx].Hash.String()
 }
 
-func (s *liveState) RandomAddress() string {
+func (s *LiveState) RandomAddress() string {
 	if len(s.transactions) == 0 {
 		return ""
 	}
-	idx := int(s.randSrc.Int63()) % len(s.transactions)
+	idx := int(s.RandSrc.Int63()) % len(s.transactions)
 	return s.transactions[idx].From.String()
 }
 
-func (s *liveState) RandomCall() (to, from, input string, block uint64) {
+func (s *LiveState) RandomCall() (to, from, input string, block uint64) {
 	if len(s.transactions) == 0 {
 		return
 	}
-	tx := s.transactions[int(s.randSrc.Int63())%len(s.transactions)]
+	tx := s.transactions[int(s.RandSrc.Int63())%len(s.transactions)]
 	if tx.To != nil {
 		to = tx.To.String()
 	}
@@ -82,11 +84,25 @@ func (s *liveState) RandomCall() (to, from, input string, block uint64) {
 	return
 }
 
-func (s *liveState) RandomContract() (addr string, topics []string) {
+func (s *LiveState) RandomContract() (addr string, topics []string) {
 	// TODO: Scrape https://etherscan.io/accounts or https://ethgasstation.info/gasguzzlers.php instead?
 	idx := s.RandInt64() % int64(len(popularContracts))
 	c := popularContracts[idx]
 	return c.Addr, c.Topics
+}
+
+func (s *LiveState) RandomBlock() string {
+	if len(s.blockHashes) == 0 {
+		return ""
+	}
+	idx := int(s.RandSrc.Int63()) % len(s.blockHashes)
+	for _, value := range s.blockHashes {
+		if idx == 0 {
+			return value
+		}
+		idx--
+	}
+	return ""
 }
 
 var popularContracts = []struct {
@@ -119,23 +135,32 @@ var popularContracts = []struct {
 	},
 }
 
-type stateProducer struct {
-	client node.Client
+type StateProducer struct {
+	Client node.Client
 }
 
-func (p *stateProducer) Refresh(oldState *liveState) (*liveState, error) {
+func (p *StateProducer) Refresh(oldState *LiveState) (*LiveState, error) {
 	if oldState == nil {
 		return nil, errors.New("must provide old state to refresh")
 	}
 
-	b, err := p.client.BlockByNumberOrTag(context.Background(), *(eth.MustBlockNumberOrTag("latest")), true)
+	b, err := p.Client.BlockByNumberOrTag(context.Background(), *(eth.MustBlockNumberOrTag("latest")), true)
 	if err != nil {
 		return nil, err
 	}
 	// Short circuit if the sampled block is empty
 	if len(b.Transactions) == 0 {
-		return nil, errEmptyBlock
+		return nil, ErrEmptyBlock
 	}
+
+	blockHashes := make(map[uint64]string)
+	for k, v := range oldState.blockHashes {
+		blockHashes[k] = v
+	}
+
+	blockHashes[b.Number.UInt64()] = b.Hash.String()
+	blockHashes[b.Number.UInt64()-1] = b.ParentHash.String()
+
 	// txs will grow to the maximum contract transaction list size we'll see in a block, and the higher-indexed ones will stick around longer
 	txs := oldState.transactions
 	for i, tx := range b.Transactions {
@@ -153,12 +178,13 @@ func (p *stateProducer) Refresh(oldState *liveState) (*liveState, error) {
 		}
 	}
 
-	state := liveState{
-		idGen:   oldState.idGen,
-		randSrc: oldState.randSrc,
+	state := LiveState{
+		IdGen:   oldState.IdGen,
+		RandSrc: oldState.RandSrc,
 
 		currentBlock: b.Number.UInt64(),
 		transactions: txs,
+		blockHashes:  blockHashes,
 	}
 	return &state, nil
 }
