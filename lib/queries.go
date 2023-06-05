@@ -120,6 +120,254 @@ func genEthGetCode(s State) QueryContent {
 	}
 }
 
+func genEthEstimateGas(s State) QueryContent {
+	to, from, input, block := s.RandomCall()
+	res := QueryContent{
+		Id:     s.ID(),
+		Method: "eth_estimateGas",
+	}
+	if to != "" {
+		res.Params = fmt.Sprintf(`[{"to":%q,"from":%q,"data":%q},"0x%x"]`, to, from, input, block-1)
+	} else {
+		res.Params = fmt.Sprintf(`[{"from":%q,"data":%q},"0x%x"]`, from, input, block-1)
+	}
+
+	return res
+}
+
+func getEthGetBlockByHash(s State) QueryContent {
+	block := s.RandomBlock()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getBlockByHash",
+		Params: fmt.Sprintf(`["%s",false]`, block),
+	}
+}
+
+func getEthGetBlockByHashFull(s State) QueryContent {
+	block := s.RandomBlock()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getBlockByHash",
+		Params: fmt.Sprintf(`["%s",true]`, block),
+	}
+}
+
+func getEthGetTransactionByBlockNumberAndIndex(s State) QueryContent {
+	r := s.RandInt64()
+	blockNum := s.CurrentBlock() - uint64(r%100) - 200
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getTransactionByBlockNumberAndIndex",
+		Params: fmt.Sprintf(`["0x%x","0x%x"]`, blockNum, r%5),
+	}
+}
+
+func getNetVersion(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "net_version",
+		Params: "[]",
+	}
+}
+
+func getEthGasPrice(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_gasPrice",
+		Params: "[]",
+	}
+}
+
+func getNetListening(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "net_listening",
+		Params: "[]",
+	}
+}
+
+func getNetPeerCount(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "net_peerCount",
+		Params: "[]",
+	}
+}
+
+func getEthSyncing(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_syncing",
+		Params: "[]",
+	}
+}
+
+func getEthGetStorageAt(s State) QueryContent {
+	addr := s.RandomAddress()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getStorageAt",
+		Params: fmt.Sprintf(`["%s","0x0","latest"]`, addr),
+	}
+}
+
+// deprecated in erigon
+func getEthAccounts(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_accounts",
+		Params: "[]",
+	}
+}
+
+func getEthChainId(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_chainId",
+		Params: "[]",
+	}
+}
+
+func getEthProtocolVersion(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_protocolVersion",
+		Params: "[]",
+	}
+}
+
+func getEthFeeHistory(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_feeHistory",
+		Params: fmt.Sprintf(`[%d, "latest", []]`, s.RandInt64()%10),
+	}
+}
+
+func getEthMaxPriorityFeePerGas(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_maxPriorityFeePerGas",
+		Params: "[]",
+	}
+}
+
+func getEthGetTransactionByBlockHashAndIndex(s State) QueryContent {
+	r := s.RandInt64()
+	hash := s.RandomBlock()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getTransactionByBlockHashAndIndex",
+		Params: fmt.Sprintf(`["%s","0x%x"]`, hash, r%5),
+	}
+}
+
+func getEthGetBlockTransactionCountByHash(s State) QueryContent {
+	hash := s.RandomBlock()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getBlockTransactionCountByHash",
+		Params: fmt.Sprintf(`["%s"]`, hash),
+	}
+}
+
+func getEthGetBlockTransactionCountByNumber(s State) QueryContent {
+	block := s.CurrentBlock() - uint64(s.RandInt64()%100)
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getBlockTransactionCountByNumber",
+		Params: fmt.Sprintf(`["0x%x"]`, block),
+	}
+}
+
+func getEthGetBlockReceipts(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getBlockReceipts",
+		Params: `["latest"]`,
+	}
+}
+
+func getTraceBlock(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "trace_block",
+		Params: `["latest"]`,
+	}
+}
+
+func getTraceTransaction(s State) QueryContent {
+	hash := s.RandomTransaction()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "trace_transaction",
+		Params: fmt.Sprintf(`["%s"]`, hash),
+	}
+}
+
+func getTraceReplayTransaction(s State) QueryContent {
+	hash := s.RandomTransaction()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "trace_replayTransaction",
+		Params: fmt.Sprintf(`["%s", ["trace"]]`, hash),
+	}
+}
+
+func getTraceReplayBlockTransactions(s State) QueryContent {
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "trace_replayBlockTransactions",
+		Params: `["latest", ["trace"]]`,
+	}
+}
+
+func getDebugTraceTransaction(s State) QueryContent {
+	hash := s.RandomTransaction()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "debug_traceTransaction",
+		Params: fmt.Sprintf(`["%s", {"tracer": "callTracer"}]`, hash),
+	}
+}
+
+func getDebugTraceBlockByNumber(s State) QueryContent {
+	block := s.CurrentBlock() - uint64(s.RandInt64()%1000)
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "debug_traceBlockByNumber",
+		Params: fmt.Sprintf(`["0x%x", {"tracer": "callTracer"}]`, block),
+	}
+}
+
+func getDebugTraceBlockByHash(s State) QueryContent {
+	hash := s.RandomBlock()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "debug_traceBlockByHash",
+		Params: fmt.Sprintf(`["%s", {"tracer": "callTracer"}]`, hash),
+	}
+}
+
+func getEthCreateAccessList(s State) QueryContent {
+	to, from, input, block := s.RandomCall()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_createAccessList",
+		Params: fmt.Sprintf(`[{"from": "%s", "to": "%s", "data": "%s"}, "0x%x"]`, from, to, input, block-1),
+	}
+}
+
+func getEthGetProof(s State) QueryContent {
+	to, _, _, block := s.RandomCall()
+	return QueryContent{
+		Id:     s.ID(),
+		Method: "eth_getProof",
+		Params: fmt.Sprintf(`["%s", ["0x0"], "0x%x"]`, to, block-1),
+	}
+}
+
 func MakeQueriesGenerator(methods map[string]int64) (gen QueriesGenerator, err error) {
 	// Top queries by weight, pulled from a 5000 Infura query sample on Dec 2019.
 	//     3 "eth_accounts"
@@ -154,6 +402,34 @@ func MakeQueriesGenerator(methods map[string]int64) (gen QueriesGenerator, err e
 		"eth_getTransactionByHash":                genEthGetTransactionByHash,
 		"eth_getLogs":                             genEthGetLogs,
 		"eth_getCode":                             genEthGetCode,
+		"eth_estimateGas":                         genEthEstimateGas,
+		"eth_getBlockByHash":                      getEthGetBlockByHash,
+		"eth_getBlockByHash#full":                 getEthGetBlockByHashFull,
+		"eth_getTransactionByBlockNumberAndIndex": getEthGetTransactionByBlockNumberAndIndex,
+		"net_version":                             getNetVersion,
+		"eth_gasPrice":                            getEthGasPrice,
+		"net_listening":                           getNetListening,
+		"net_peerCount":                           getNetPeerCount,
+		"eth_syncing":                             getEthSyncing,
+		"eth_getStorageAt":                        getEthGetStorageAt,
+		"eth_accounts":                            getEthAccounts,
+		"eth_chainId":                             getEthChainId,
+		"eth_protocolVersion":                     getEthProtocolVersion,
+		"eth_feeHistory":                          getEthFeeHistory,
+		"eth_maxPriorityFeePerGas":                getEthMaxPriorityFeePerGas,
+		"eth_getTransactionByBlockHashAndIndex":   getEthGetTransactionByBlockHashAndIndex,
+		"eth_getBlockTransactionCountByHash":      getEthGetBlockTransactionCountByHash,
+		"eth_getBlockTransactionCountByNumber":    getEthGetBlockTransactionCountByNumber,
+		"eth_getBlockReceipts":                    getEthGetBlockReceipts,
+		"trace_block":                             getTraceBlock,
+		"trace_transaction":                       getTraceTransaction,
+		"trace_traceReplayTransaction":            getTraceReplayTransaction,
+		"trace_replayBlockTransactions":           getTraceReplayBlockTransactions,
+		"debug_traceTransaction":                  getDebugTraceTransaction,
+		"debug_traceBlockByNumber":                getDebugTraceBlockByNumber,
+		"debug_traceBlockByHash":                  getDebugTraceBlockByHash,
+		"eth_createAccessList":                    getEthCreateAccessList,
+		"eth_getProof":                            getEthGetProof,
 	}
 
 	for method, weight := range methods {
